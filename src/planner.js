@@ -10,6 +10,13 @@ import { KG_PER_LB } from './units.js';
 
 const MS_PER_DAY = 86_400_000;
 
+/**
+ * Projections stop at this BMI. A mean BMI of about 12 has been proposed as the
+ * lower limit of human survival (James et al. 1988; Henry's review). Below it the
+ * model's numbers describe no living person. See docs/RESEARCH.md §5.
+ */
+export const SURVIVAL_LIMIT_BMI = 12;
+
 function toUtcDate(date) {
   const d = typeof date === 'string' ? new Date(`${date}T00:00:00Z`) : new Date(date);
   if (Number.isNaN(d.getTime())) throw new RangeError(`invalid date: ${date}`);
@@ -38,11 +45,26 @@ export function projectByDate(person, opts) {
   const start = toUtcDate(opts.startDate);
   const days = opts.days ?? daysBetween(start, opts.endDate);
   const phases = normalisePhases(opts, start);
-  const rows = simulate(base, phases, days).map((r) => ({
+  const sim = simulate(base, phases, days);
+  let rows = sim.map((r) => ({
     ...r,
     date: isoDate(new Date(start.getTime() + r.day * MS_PER_DAY)),
   }));
-  return { baselineMaintenanceKcal: baselineMaintenanceKcal(base), rows };
+  let stoppedOnDay = sim.stoppedOnDay;
+  let stopReason = stoppedOnDay === undefined ? undefined : 'fat-depleted';
+  const limit = rows.findIndex((r) => bmi(r.weightKg, person.heightCm) < SURVIVAL_LIMIT_BMI);
+  if (limit > 0) {
+    rows = rows.slice(0, limit + 1);
+    stoppedOnDay = rows.at(-1).day;
+    stopReason = 'survival-limit';
+  }
+  return {
+    baselineMaintenanceKcal: baselineMaintenanceKcal(base),
+    rows,
+    stoppedOnDay,
+    stopReason,
+    stoppedOnDate: stoppedOnDay === undefined ? undefined : rows.at(-1).date,
+  };
 }
 
 function normalisePhases(opts, start) {
@@ -66,11 +88,19 @@ export function projectRange(person, opts, uncertainty = 0.05) {
   const { mifflinStJeor } = bodyFns;
   const rmr = person.rmrKcal ?? mifflinStJeor(person);
   const central = projectByDate(person, opts);
-  const low = projectByDate({ ...person, rmrKcal: rmr * (1 + uncertainty) }, opts).rows;
-  const high = projectByDate({ ...person, rmrKcal: rmr * (1 - uncertainty) }, opts).rows;
+  const low = projectByDate({ ...person, rmrKcal: rmr * (1 + uncertainty) }, opts);
+  const high = projectByDate({ ...person, rmrKcal: rmr * (1 - uncertainty) }, opts);
+  // The central run decides the length. If an edge of the band stops earlier
+  // (it hit the survival limit), it holds its last value from then on.
+  const edge = (run, i) => (run.rows[i] ?? run.rows.at(-1)).weightKg;
+  const rows = central.rows.map((r, i) => ({ ...r, lowKg: edge(low, i), highKg: edge(high, i) }));
+  const { stoppedOnDay, stopReason } = central;
   return {
     baselineMaintenanceKcal: central.baselineMaintenanceKcal,
-    rows: central.rows.map((r, i) => ({ ...r, lowKg: low[i].weightKg, highKg: high[i].weightKg })),
+    rows,
+    stoppedOnDay,
+    stopReason,
+    stoppedOnDate: stoppedOnDay === undefined ? undefined : rows.at(-1).date,
   };
 }
 
@@ -84,11 +114,13 @@ export function weekly(rows) {
  * Returns null if it never does within maxDays (the plateau is above the goal).
  */
 export function dateToReachGoal(person, { startDate, intakeKcal, goalKg, maxDays = 365 * 10 }) {
-  const { rows } = projectByDate(person, { startDate, intakeKcal, days: maxDays });
+  const { rows, stoppedOnDate, stopReason } = projectByDate(person, { startDate, intakeKcal, days: maxDays });
   const losing = goalKg < person.weightKg;
   const hit = rows.find((r) => (losing ? r.weightKg <= goalKg : r.weightKg >= goalKg));
   const plateauKg = rows[rows.length - 1].weightKg;
-  return hit ? { reached: true, date: hit.date, day: hit.day, plateauKg } : { reached: false, plateauKg };
+  return hit
+    ? { reached: true, date: hit.date, day: hit.day, plateauKg }
+    : { reached: false, plateauKg, stoppedOnDate, stopReason };
 }
 
 /**
@@ -153,7 +185,7 @@ export function safetyChecks(person, { intakeKcal, goalKg, rows }) {
 
   if (intakeKcal !== undefined) {
     if (intakeKcal < 800) {
-      add('block', 'vlcd', 'Under 800 kcal/day is a very-low-calorie diet; only under medical supervision.');
+      add('warn', 'vlcd', 'Under 800 kcal/day is a very-low-calorie diet, normally done only under medical supervision.');
     } else {
       const floor = person.sex === 'male' ? 1500 : 1200;
       if (intakeKcal < floor) add('warn', 'low-intake', `Below ${floor} kcal/day, the commonly cited minimum without medical supervision.`);

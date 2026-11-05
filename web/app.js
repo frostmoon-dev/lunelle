@@ -148,7 +148,7 @@ function validate(inp) {
   mark('heightCm', hBad); mark('heightFt', hBad); mark('heightIn', hBad);
   if (hBad) problems.push('Enter a height between 120 and 230 cm (3 ft 11 in to 7 ft 6 in).');
   if (mark('weight', !(person.weightKg >= 30 && person.weightKg <= 350))) problems.push('Enter a weight between 30 and 350 kg (66 to 770 lb).');
-  if (mark('intake', !(inp.intakeKcal >= 0 && inp.intakeKcal <= 6000))) problems.push('Enter daily calories between 0 and 6,000.');
+  if (mark('intake', !(inp.intakeKcal >= 0))) problems.push('Enter daily calories (0 or more).');
   return problems;
 }
 
@@ -412,7 +412,7 @@ function update() {
     renderAlerts([{ level: 'block', message: err.message }]);
     return;
   }
-  const { rows, baselineMaintenanceKcal } = projection;
+  const { rows, baselineMaintenanceKcal, stoppedOnDate, stopReason } = projection;
   const rule = rows.map((r) => staticRuleWeight({
     startWeightKg: person.weightKg, maintenanceKcal: baselineMaintenanceKcal, intakeKcal, days: r.day,
   }));
@@ -426,6 +426,11 @@ function update() {
     goalKg = undefined;
   }
   alerts.push(...safetyChecks(person, { intakeKcal, rows }).filter((a) => a.code !== 'underweight-goal'));
+  if (stoppedOnDate) {
+    alerts.unshift({ level: 'warn', code: 'projection-stopped', message: stopReason === 'survival-limit'
+      ? `At this intake your BMI falls to 12 around ${fmtDate(stoppedOnDate)}, about the lower limit of human survival seen in starvation studies. The projection stops there.`
+      : `At this intake your body-fat stores run out around ${fmtDate(stoppedOnDate)}. The projection stops there: this would not be survivable.` });
+  }
 
   const tiles = [];
   const last = rows.at(-1);
@@ -433,7 +438,7 @@ function update() {
   tiles.push(tile('Maintenance today', kcal(baselineMaintenanceKcal), 'Estimated calories to stay at your current weight'));
   const diff = intakeKcal - baselineMaintenanceKcal;
   tiles.push(tile(diff <= 0 ? 'Daily deficit' : 'Daily surplus', kcal(Math.abs(diff)), `Eating ${kcal(intakeKcal)} a day`));
-  tiles.push(tile(`Weight on ${fmtDate(last.date)}`, fmtW(last.weightKg),
+  tiles.push(tile(`Weight on ${fmtDate(last.date)}${stoppedOnDate ? ' (projection end)' : ''}`, fmtW(last.weightKg),
     `${change <= 0 ? '−' : '+'}${toDisplayW(Math.abs(change)).toFixed(1)} ${wUnit()} · range ${toDisplayW(last.lowKg).toFixed(1)}–${fmtW(last.highKg)}`));
   const bNow = bmi(person.weightKg, person.heightCm);
   const bEnd = bmi(last.weightKg, person.heightCm);
@@ -445,7 +450,9 @@ function update() {
     const reach = dateToReachGoal(person, { startDate, intakeKcal, goalKg });
     tiles.push(reach.reached
       ? tile(`Reach ${fmtW(goalKg)}`, fmtDate(reach.date), `${reach.day} days at ${kcal(intakeKcal)}/day`)
-      : tile(`Reach ${fmtW(goalKg)}`, 'Not at this intake', `You would level off around ${fmtW(reach.plateauKg)}`));
+      : tile(`Reach ${fmtW(goalKg)}`, 'Not at this intake', reach.stoppedOnDate
+        ? `You would reach the survival limit around ${fmtDate(reach.stoppedOnDate)} first`
+        : `You would level off around ${fmtW(reach.plateauKg)}`));
 
     if (inp.goalDate) {
       const plan = daysBetween(startDate, inp.goalDate) >= 1

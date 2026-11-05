@@ -172,6 +172,8 @@ function planToInputs(base, phases) {
 /**
  * Simulate `days` days. Returns one record per day (day 0 = start).
  * Inputs are held constant within each day.
+ * If fat mass runs out (below 0.5 kg) the model is no longer meaningful, so the
+ * run stops early: the array is shorter and carries `stoppedOnDay`.
  */
 export function simulate(base, phases, days) {
   if (!(Number.isInteger(days) && days >= 0 && days <= 365 * 20)) {
@@ -198,7 +200,11 @@ export function simulate(base, phases, days) {
     record(day, input);
     const steps = Math.round(1 / DT);
     for (let i = 0; i < steps; i++) s = rk4Step(base, s, input, DT);
-    if (!(s.F > 0.5)) throw new RangeError(`Fat mass fell below 0.5 kg on day ${day}; plan is not survivable`);
+    if (!(s.F > 0.5)) {
+      record(day + 1, input);
+      records.stoppedOnDay = day + 1;
+      return records;
+    }
   }
   record(days, inputFor(days));
   return records;

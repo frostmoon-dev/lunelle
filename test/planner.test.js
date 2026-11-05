@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   projectByDate, projectRange, dateToReachGoal, intakeForGoal, staticRuleWeight, safetyChecks, daysBetween, weekly,
 } from '../src/planner.js';
+import { bmi } from '../src/body.js';
 
 const woman = { sex: 'female', age: 35, heightCm: 165, weightKg: 85, pal: 1.5 };
 
@@ -77,4 +78,20 @@ test('projectRange brackets the central projection', () => {
 test('daysBetween counts calendar days', () => {
   assert.equal(daysBetween('2026-01-01', '2026-12-31'), 364);
   assert.equal(daysBetween('2028-02-28', '2028-03-01'), 2);
+});
+
+test('any calorie amount gets a projection (very low intake warns, never blocks)', () => {
+  for (const intakeKcal of [0, 300, 799, 8000]) {
+    const res = projectRange(woman, { startDate: '2026-01-01', intakeKcal, days: 365 * 2 });
+    assert.ok(res.rows.length > 1);
+    const checks = safetyChecks(woman, { intakeKcal, rows: res.rows });
+    assert.ok(checks.every((c) => c.level !== 'block'));
+  }
+  const starve = projectRange(woman, { startDate: '2026-01-01', intakeKcal: 0, days: 365 * 2 });
+  assert.equal(starve.stopReason, 'survival-limit');
+  const lastBmi = bmi(starve.rows.at(-1).weightKg, woman.heightCm);
+  assert.ok(lastBmi < 12 && lastBmi > 11.5, `got ${lastBmi}`);
+  const goal = dateToReachGoal(woman, { startDate: '2026-01-01', intakeKcal: 0, goalKg: 25 });
+  assert.equal(goal.reached, false);
+  assert.equal(goal.stopReason, 'survival-limit');
 });
