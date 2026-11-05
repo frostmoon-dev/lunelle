@@ -233,11 +233,14 @@ Roughly 1.2–1.6 g/kg/day is widely recommended to protect lean mass. One revie
 |---|---|---|
 | Age < 18 → no plan | block | Inference + Hall's adult model isn't valid for children; the `bw` R package warns for age < 18 |
 | Pregnancy → no plan | block | Inference (standard practice) |
-| Intake < 800 kcal/day → only under medical supervision | block | NICE CG189 defines VLCDs as 450–800 kcal/day; the NIH 1993 task force found them safe under medical supervision. Documented at abstract/summary level |
+| Intake < 800 kcal/day → only under medical supervision | warn (projection still shown) | NICE CG189 defines VLCDs as 450–800 kcal/day; the NIH 1993 task force found them safe under medical supervision. Documented at abstract/summary level |
 | Intake < 1200 (women) / 1500 (men) | warn | Commonly attributed to Harvard Health. ⚠️ VERIFY: secondary sources only, and one attributes different figures to NIH. Check Harvard Health Publishing directly |
 | Goal BMI < 18.5 | block | WHO BMI categories |
+| Projection reaches BMI 12 → projection stops there and says why | stop | A mean BMI of ~12 has been proposed as the lower limit of human survival (James et al. 1988; Henry). Secondary: ENN summary of Henry's review, https://ennonline.net/fex/15/limits. ⚠️ VERIFY against Henry CJK, Eur J Clin Nutr 1990;44:329–35 |
 | Projection goes below BMI 18.5 | warn | Inference from model output (§3.4) |
 | > 1 kg/week after week 2 | warn | CDC: "about 1 to 2 pounds per week", linked to a 500–1000 kcal/day deficit. Secondary: archived CDC pages (2009, 2018) |
+
+Calorie input is not restricted: any amount (0 or more) gets a projection. Very low intakes only warn.
 
 Also recommended (not yet implemented):
 

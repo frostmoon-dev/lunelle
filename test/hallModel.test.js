@@ -57,3 +57,11 @@ test('rejects under-18s and impossible inputs', () => {
   assert.throws(() => simulate(base, [{ startDay: 0, intakeKcal: -1 }], 10), RangeError);
   assert.throws(() => simulate(base, [{ startDay: 5, intakeKcal: 2000 }], 10), RangeError);
 });
+
+test('zero intake stops the run when fat runs out instead of throwing', () => {
+  const base = createBaseline(man);
+  const rows = simulate(base, [{ startDay: 0, intakeKcal: 0 }], 365 * 3);
+  assert.ok(rows.stoppedOnDay > 30 && rows.stoppedOnDay < 365 * 3);
+  assert.equal(rows.length, rows.stoppedOnDay + 1);
+  assert.ok(rows.at(-1).fatKg <= 0.5);
+});
