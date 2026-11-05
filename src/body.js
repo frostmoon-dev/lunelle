@@ -77,9 +77,9 @@ export function katchMcArdle({ weightKg, bodyFatPercent }) {
  * starts with; 1.5 for sedentary matches Hall et al. 2011.
  */
 export const PAL_BANDS = Object.freeze({
-  sedentary: Object.freeze({ min: 1.4, max: 1.69, default: 1.5, label: 'Sedentary or light activity' }),
-  active: Object.freeze({ min: 1.7, max: 1.99, default: 1.85, label: 'Active or moderately active' }),
-  vigorous: Object.freeze({ min: 2.0, max: 2.4, default: 2.2, label: 'Vigorous or vigorously active' }),
+  sedentary: Object.freeze({ min: 1.4, max: 1.69, default: 1.5, label: 'Sedentary or light activity', short: 'Sedentary' }),
+  active: Object.freeze({ min: 1.7, max: 1.99, default: 1.85, label: 'Active or moderately active', short: 'Active' }),
+  vigorous: Object.freeze({ min: 2.0, max: 2.4, default: 2.2, label: 'Vigorous or vigorously active', short: 'Vigorous' }),
 });
 
 /** Total daily energy expenditure estimate, kcal/day. */
