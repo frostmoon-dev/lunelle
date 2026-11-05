@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lunelle Weight Planner</title>
+  <meta name="description" content="See how your weight is likely to change, date by date, at a given daily calorie intake.">
+  <link rel="stylesheet" href="/web/styles.css">
+  <script type="module" src="/web/app.js"></script>
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <h1>Lunelle</h1>
+      <p class="sub">See how your weight is likely to change, date by date.</p>
+    </div>
+  </header>
+
+  <main class="wrap layout">
+    <form id="form" class="panel" autocomplete="off" novalidate>
+      <fieldset>
+        <legend>About you</legend>
+        <div class="row">
+          <label>Units
+            <select name="units">
+              <option value="metric">kg / cm</option>
+              <option value="us">lb / ft·in</option>
+            </select>
+          </label>
+          <label>Sex
+            <select name="sex">
+              <option value="female">Female</option>
+              <option value="male">Male</option>
+            </select>
+          </label>
+        </div>
+        <div class="row">
+          <label>Age <input name="age" type="number" min="18" max="100" step="1" value="35" inputmode="numeric"></label>
+          <label class="metric-only">Height (cm) <input name="heightCm" type="number" min="120" max="230" step="0.5" value="165" inputmode="decimal"></label>
+          <label class="us-only">Height (ft) <input name="heightFt" type="number" min="4" max="7" step="1" value="5" inputmode="numeric"></label>
+          <label class="us-only">(in) <input name="heightIn" type="number" min="0" max="11.9" step="0.5" value="5" inputmode="decimal"></label>
+        </div>
+        <div class="row">
+          <label><span>Weight (<span data-unit="w">kg</span>)</span> <input name="weight" type="number" min="30" max="350" step="0.1" value="85" inputmode="decimal"></label>
+          <label>Activity
+            <select name="pal" id="pal"></select>
+          </label>
+        </div>
+        <label class="check"><input name="pregnant" type="checkbox"> I am pregnant or breastfeeding</label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Your plan</legend>
+        <div class="row">
+          <label>Calories per day <input name="intake" type="number" min="0" max="6000" step="10" value="1800" inputmode="numeric"></label>
+          <label>Start date <input name="startDate" type="date"></label>
+        </div>
+        <div class="row">
+          <label>Show
+            <select name="months">
+              <option value="3">3 months</option>
+              <option value="6">6 months</option>
+              <option value="12" selected>1 year</option>
+              <option value="24">2 years</option>
+            </select>
+          </label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Goal <span class="opt">(optional)</span></legend>
+        <div class="row">
+          <label><span>Goal weight (<span data-unit="w">kg</span>)</span> <input name="goal" type="number" min="30" max="350" step="0.1" value="75" inputmode="decimal"></label>
+          <label>Reach it by <input name="goalDate" type="date"></label>
+        </div>
+      </fieldset>
+      <p class="fineprint">Not medical advice. Estimates assume you eat exactly this amount every day. Real needs vary by about ±5% from person to person.</p>
+    </form>
+
+    <section class="results" aria-live="polite">
+      <div id="alerts" class="alerts"></div>
+      <div id="tiles" class="tiles"></div>
+
+      <div class="panel chart-panel" id="chartPanel">
+        <div class="chart-head">
+          <h2>Projected weight</h2>
+          <ul class="legend" id="legend"></ul>
+        </div>
+        <div class="chart" id="chart"></div>
+        <p class="note" id="chartNote"></p>
+      </div>
+
+      <details class="panel" id="tablePanel">
+        <summary>Table view</summary>
+        <div class="table-wrap"><table id="table"></table></div>
+      </details>
+
+      <details class="panel">
+        <summary>How this works</summary>
+        <div class="prose">
+          <p>The projection uses the published dynamic body-weight model from Hall et al. (<i>The Lancet</i>, 2011), the model behind the NIH Body Weight Planner. It accounts for the fact that you burn less as you get lighter, so weight loss slows down and eventually levels off at a plateau.</p>
+          <p>The first one or two weeks drop faster: that is mostly stored carbohydrate (glycogen) and the water held with it, not fat.</p>
+          <p>The dashed line shows the old "3,500 calories = 1 pound" rule for comparison. It assumes your deficit never shrinks, so it overestimates loss over time.</p>
+          <p>The shaded band shows what happens if your real energy needs are 5% higher or lower than the estimate. Logging your actual weight over a few weeks is the best way to find out where you are in that band.</p>
+        </div>
+      </details>
+    </section>
+  </main>
+
+  <div class="tooltip" id="tooltip" role="status" hidden></div>
+</body>
+</html>
